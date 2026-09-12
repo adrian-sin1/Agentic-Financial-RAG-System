@@ -6,7 +6,9 @@ langgraph
 fastapi
 uvicorn
 pydantic
-pdfplumber
+beautifulsoup4
+lxml
+tiktoken
 python-dotenv
 pytest
 requests
