@@ -1,0 +1,13 @@
+snowflake-connector-python
+cryptography
+pinecone
+openai
+langgraph
+fastapi
+uvicorn
+pydantic
+pdfplumber
+python-dotenv
+pytest
+requests
+slowapi
