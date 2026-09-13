@@ -99,7 +99,10 @@ export default function App() {
     <div className="page">
       <header>
         <h1>Financial Filings Research</h1>
-        <p className="subtitle">Grounded Q&amp;A over Apple's FY2025 10-K</p>
+        <p className="subtitle">
+          Grounded Q&amp;A over 5 companies' 10-Ks (Apple, Microsoft, Alphabet, Amazon, Meta — FY2024 &amp;
+          FY2025)
+        </p>
       </header>
 
       <div className="api-key-row">
