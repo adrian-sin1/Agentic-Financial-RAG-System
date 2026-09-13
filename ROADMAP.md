@@ -25,12 +25,10 @@ Status of each build phase for the Agentic Financial RAG Platform.
 - [x] **Phase 6 — Docker + CI/CD**
   Multi-stage Dockerfile (Node build → Python deps → slim runtime, 472MB). GitHub Actions: pytest → eval-score gate → Docker build validation → (on push to `main`) build + push to GHCR → trigger a Render deploy hook. Live and verified: `/health`, `/chat`, and `/ui` all confirmed working on the deployed service.
 
-## Not started
-
-- [ ] **Phase 7 — Scale up**
-  Add the remaining 4 companies × 2 years once Phases 1–6 are solid end to end; re-run the eval set to confirm quality holds at scale.
+- [x] **Phase 7 — Scale up**
+  Added Microsoft, Alphabet, Amazon, and Meta (FY2025 + FY2024 each), plus Apple's FY2024 — 10 documents, 2,160 chunks, 40 financial metrics total. Caught and fixed a real extraction bug along the way (section-header detection only worked on Apple's exact HTML formatting; see the `extract.py` fix). Eval score held at 14/16 (88%) after scaling the corpus 10x — same one known near-miss as before, no new failures from cross-company interference. Spot-checked structured + text retrieval for all 4 new companies individually.
 
 ## Known limitations (tracked, not blocking)
 
-- Two eval questions (Legal Proceedings, Business-section combined query) narrowly miss hybrid search's top-5 cutoff — the content is retrievable (confirmed present ~rank 10-18) but doesn't rank high enough for these specific phrasings. Eval score: 13/16 (81%), above the 80% pass threshold.
+- One eval question (Legal Proceedings) narrowly misses hybrid search's top-5 cutoff — the content is retrievable (confirmed present ~rank 10-18) but doesn't rank high enough for this specific phrasing. Eval score: 14/16 (88%), above the 80% pass threshold.
 - The LLM router is not perfectly deterministic — the same question can occasionally select a different subset of tools across runs. Phase 5's agent tests mock the routing decision specifically to sidestep this in CI.
