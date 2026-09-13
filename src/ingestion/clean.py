@@ -4,13 +4,13 @@ MIN_SECTION_CHARS = 200
 
 
 def clean_sections(sections: list[dict]) -> list[dict]:
-    """Collapse whitespace and drop sections too short to carry real content
-    (table-of-contents entries, "[Reserved]" placeholders, empty items)."""
+    """Collapse whitespace within each paragraph and drop sections too short
+    to carry real content ("[Reserved]" placeholders, empty items)."""
     cleaned = []
     for s in sections:
-        text = re.sub(r"[ \t]+", " ", s["text"])
-        text = re.sub(r"\n{2,}", "\n", text).strip()
-        if len(text) < MIN_SECTION_CHARS:
+        paragraphs = [re.sub(r"[ \t]+", " ", p).strip() for p in s["paragraphs"]]
+        paragraphs = [p for p in paragraphs if p]
+        if sum(len(p) for p in paragraphs) < MIN_SECTION_CHARS:
             continue
-        cleaned.append({"section": s["section"], "text": text})
+        cleaned.append({"section": s["section"], "paragraphs": paragraphs})
     return cleaned

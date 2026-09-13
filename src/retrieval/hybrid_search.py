@@ -1,4 +1,5 @@
 from src.retrieval.keyword_search import keyword_search
+from src.retrieval.neighbors import fetch_chunks, neighbor_chunk_ids
 from src.retrieval.vector_search import vector_search
 
 RRF_K = 60
@@ -11,10 +12,19 @@ RRF_K = 60
 GROUNDEDNESS_THRESHOLD = 0.4
 
 
-def hybrid_search(question: str, *, top_k: int = 5, company: str | None = None) -> list[dict]:
+def hybrid_search(
+    question: str, *, top_k: int = 5, company: str | None = None, expand_neighbors: bool = True
+) -> list[dict]:
     """Combine Pinecone vector search and Snowflake keyword search results via
     reciprocal rank fusion, gated by a groundedness threshold on the vector
     scores.
+
+    If expand_neighbors is set, each retrieved chunk's immediate neighbors
+    (same section, adjacent index) are pulled in too -- if paragraph B
+    references paragraph A and they landed in different chunks, retrieving B
+    brings A along even though A didn't independently rank in the top_k.
+    Neighbors are marked is_neighbor=True and carry no rrf_score, since they
+    weren't independently judged relevant, just adjacent to something that was.
     """
     candidate_pool = max(top_k * 4, 20)
     vector_results = vector_search(question, top_k=candidate_pool, company=company)
@@ -33,4 +43,16 @@ def hybrid_search(question: str, *, top_k: int = 5, company: str | None = None) 
         chunks.setdefault(r["chunk_id"], r)
 
     ranked_ids = sorted(scores, key=lambda cid: scores[cid], reverse=True)[:top_k]
-    return [{**chunks[cid], "rrf_score": scores[cid]} for cid in ranked_ids]
+    results = [{**chunks[cid], "rrf_score": scores[cid], "is_neighbor": False} for cid in ranked_ids]
+
+    if expand_neighbors:
+        wanted_ids = set()
+        for cid in ranked_ids:
+            wanted_ids.update(neighbor_chunk_ids(cid))
+        wanted_ids -= set(ranked_ids)
+
+        neighbor_chunks = fetch_chunks(list(wanted_ids))
+        for chunk in neighbor_chunks.values():
+            results.append({**chunk, "rrf_score": None, "is_neighbor": True})
+
+    return results

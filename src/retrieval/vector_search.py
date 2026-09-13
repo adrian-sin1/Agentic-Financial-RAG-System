@@ -3,8 +3,8 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from src.db.connection import get_snowflake_connection
 from src.db.pinecone_client import get_pinecone_index
+from src.retrieval.neighbors import fetch_chunks
 
 load_dotenv()
 
@@ -24,36 +24,15 @@ def vector_search(question: str, *, top_k: int = 5, company: str | None = None) 
     results = index.query(vector=embedding, top_k=top_k, filter=query_filter, include_metadata=True)
 
     matches = results.get("matches", [])
-    chunk_ids = [m["id"] for m in matches]
-    if not chunk_ids:
+    if not matches:
         return []
 
-    conn = get_snowflake_connection()
-    cur = conn.cursor()
-    placeholders = ", ".join(["%s"] * len(chunk_ids))
-    cur.execute(
-        f"SELECT chunk_id, company, year, document_type, section, page, chunk_text "
-        f"FROM document_chunks WHERE chunk_id IN ({placeholders})",
-        chunk_ids,
-    )
-    rows_by_id = {row[0]: row for row in cur.fetchall()}
-    conn.close()
+    chunks_by_id = fetch_chunks([m["id"] for m in matches])
 
     results_out = []
     for match in matches:
-        row = rows_by_id.get(match["id"])
-        if row is None:
+        chunk = chunks_by_id.get(match["id"])
+        if chunk is None:
             continue
-        results_out.append(
-            {
-                "chunk_id": row[0],
-                "company": row[1],
-                "year": row[2],
-                "document_type": row[3],
-                "section": row[4],
-                "page": row[5],
-                "chunk_text": row[6],
-                "score": match["score"],
-            }
-        )
+        results_out.append({**chunk, "score": match["score"]})
     return results_out
