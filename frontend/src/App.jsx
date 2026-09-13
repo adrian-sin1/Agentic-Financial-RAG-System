@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
-const API_BASE = "http://localhost:8000";
+// Relative, not hardcoded -- the frontend is always served by the same
+// FastAPI app it talks to (mounted at /ui), so this automatically resolves
+// to whatever host/port/protocol the page itself was loaded from (works on
+// any local port, and on the deployed Render domain, with no configuration).
+const API_BASE = "";
 
 function SourceList({ sources }) {
   if (!sources || sources.length === 0) return null;
