@@ -5,8 +5,45 @@ from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
 warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
-SECTION_HEADER_RE = re.compile(r"^Item\s+\d+[A-Z]?\.?\s*\S")
+SECTION_HEADER_RE = re.compile(r"^item\s+(\d+[a-z]?)\.\s*\S", re.IGNORECASE)
 MAX_HEADER_LEN = 150
+
+# Standard Form 10-K item titles, fixed by SEC regulation -- identical for every
+# filer. Used to build a clean canonical section label (e.g. "Item 1A. Risk
+# Factors") instead of trusting the extracted heading text, which can come out
+# garbled for letter-spaced/all-caps headings (inline spans per letter-group
+# reconstruct with spurious spaces, e.g. "RIS K FACTORS").
+STANDARD_ITEM_TITLES = {
+    "1": "Business",
+    "1A": "Risk Factors",
+    "1B": "Unresolved Staff Comments",
+    "1C": "Cybersecurity",
+    "2": "Properties",
+    "3": "Legal Proceedings",
+    "4": "Mine Safety Disclosures",
+    "5": "Market for Registrant's Common Equity, Related Stockholder Matters and Issuer Purchases of Equity Securities",
+    "6": "[Reserved]",
+    "7": "Management's Discussion and Analysis of Financial Condition and Results of Operations",
+    "7A": "Quantitative and Qualitative Disclosures About Market Risk",
+    "8": "Financial Statements and Supplementary Data",
+    "9": "Changes in and Disagreements with Accountants on Accounting and Financial Disclosure",
+    "9A": "Controls and Procedures",
+    "9B": "Other Information",
+    "9C": "Disclosure Regarding Foreign Jurisdictions that Prevent Inspections",
+    "10": "Directors, Executive Officers and Corporate Governance",
+    "11": "Executive Compensation",
+    "12": "Security Ownership of Certain Beneficial Owners and Management and Related Stockholder Matters",
+    "13": "Certain Relationships and Related Transactions, and Director Independence",
+    "14": "Principal Accountant Fees and Services",
+    "15": "Exhibit and Financial Statement Schedules",
+    "16": "Form 10-K Summary",
+}
+
+
+def _canonical_section_label(match: re.Match, normalized: str) -> str:
+    item_no = match.group(1).upper()
+    title = STANDARD_ITEM_TITLES.get(item_no)
+    return f"Item {item_no}. {title}" if title else normalized
 
 
 def _is_leaf_block(tag) -> bool:
@@ -70,10 +107,11 @@ def extract_sections(html_path: str) -> list[dict]:
     current_paragraphs: list[str] = []
     for block in blocks:
         normalized = re.sub(r"\s+", " ", block.replace("\xa0", " ")).strip()
-        if len(normalized) < MAX_HEADER_LEN and SECTION_HEADER_RE.match(normalized):
+        match = SECTION_HEADER_RE.match(normalized) if len(normalized) < MAX_HEADER_LEN else None
+        if match:
             if current_paragraphs:
                 sections.append({"section": current_section, "paragraphs": current_paragraphs})
-            current_section = normalized
+            current_section = _canonical_section_label(match, normalized)
             current_paragraphs = []
         else:
             current_paragraphs.append(block)

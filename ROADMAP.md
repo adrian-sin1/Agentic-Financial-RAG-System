@@ -22,10 +22,8 @@ Status of each build phase for the Agentic Financial RAG Platform.
 - [x] **Phase 5 — Testing**
   62 pytest tests across ingestion, retrieval, agent routing (LLM mocked), and the API (auth, rate limiting, error handling) — all mocked at the external boundary, no live network/DB calls, ~3s to run.
 
-## In progress
-
-- [ ] **Phase 6 — Docker + CI/CD**
-  Multi-stage Dockerfile for the FastAPI app. GitHub Actions: install deps → pytest → eval-score gate → build image → (on merge to `main`) push to a registry and deploy.
+- [x] **Phase 6 — Docker + CI/CD**
+  Multi-stage Dockerfile (Node build → Python deps → slim runtime, 472MB). GitHub Actions: pytest → eval-score gate → Docker build validation → (on push to `main`) build + push to GHCR → trigger a Render deploy hook. Live and verified: `/health`, `/chat`, and `/ui` all confirmed working on the deployed service.
 
 ## Not started
 
