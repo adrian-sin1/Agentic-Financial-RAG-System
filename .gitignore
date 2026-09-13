@@ -1,4 +1,5 @@
 .env
+.docker.env
 .snowflake_keys/
 data/raw/
 __pycache__/

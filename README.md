@@ -3,6 +3,8 @@
 An agentic RAG platform for answering questions over company financial filings (10-Ks),
 combining unstructured document retrieval with structured financial data lookups.
 
+See [ROADMAP.md](ROADMAP.md) for build phase status.
+
 ## Stack
 
 - **LLM/embeddings:** OpenAI (`text-embedding-3-small` + GPT) end-to-end
@@ -17,7 +19,7 @@ combining unstructured document retrieval with structured financial data lookups
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-pip install -r requirements.txt
+pip install -r requirements-dev.txt  # runtime deps + pytest/httpx; use requirements.txt alone for production
 cp .env.example .env  # fill in Snowflake / Pinecone / OpenAI credentials
 ```
 

@@ -10,7 +10,5 @@ beautifulsoup4
 lxml
 tiktoken
 python-dotenv
-pytest
-httpx
 requests
 slowapi
