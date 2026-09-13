@@ -15,6 +15,7 @@ def _state(**overrides):
     base = {
         "question": "test question",
         "use_hybrid": False,
+        "hybrid_company": None,
         "use_sql": False,
         "sql_queries": [],
         "hybrid_results": [],
@@ -32,12 +33,14 @@ def _state(**overrides):
 def test_router_node_applies_the_llm_routing_decision():
     decision = {
         "use_hybrid_search": True,
+        "hybrid_search_company": "Apple",
         "use_sql_tool": True,
         "sql_queries": [{"company": "Apple", "year": 2025, "metric": "revenue"}],
     }
     with patch("src.agent.graph.route", return_value=decision):
         state = router_node(_state())
     assert state["use_hybrid"] is True
+    assert state["hybrid_company"] == "Apple"
     assert state["use_sql"] is True
     assert state["sql_queries"] == decision["sql_queries"]
 
@@ -59,6 +62,23 @@ def test_hybrid_node_calls_search_and_logs_the_tool_when_router_says_yes():
     mock_search.assert_called_once()
     assert state["hybrid_results"] == [{"chunk_text": "x"}]
     assert "hybrid_search" in state["tool_calls"]
+
+
+def test_hybrid_node_passes_the_router_company_filter_through():
+    """The index holds multiple companies' filings together -- an unfiltered
+    search can surface another company's similarly-worded risk factors
+    instead of the one actually asked about. hybrid_node must forward
+    whatever company the router identified.
+    """
+    with patch("src.agent.graph.hybrid_search", return_value=[]) as mock_search:
+        hybrid_node(_state(use_hybrid=True, hybrid_company="Apple"))
+    mock_search.assert_called_once_with("test question", top_k=5, company="Apple")
+
+
+def test_hybrid_node_passes_none_when_router_found_no_single_company():
+    with patch("src.agent.graph.hybrid_search", return_value=[]) as mock_search:
+        hybrid_node(_state(use_hybrid=True, hybrid_company=None))
+    mock_search.assert_called_once_with("test question", top_k=5, company=None)
 
 
 def test_sql_node_skips_lookup_when_router_says_no():
@@ -171,7 +191,12 @@ def _run_graph(decision, hybrid_return=None, sql_return=None, llm_answer="the an
 
 
 def test_unstructured_only_path_calls_only_hybrid_search():
-    decision = {"use_hybrid_search": True, "use_sql_tool": False, "sql_queries": []}
+    decision = {
+        "use_hybrid_search": True,
+        "hybrid_search_company": "Apple",
+        "use_sql_tool": False,
+        "sql_queries": [],
+    }
     result = _run_graph(decision, hybrid_return=[{"company": "Apple", "year": 2025, "section": "Item 1A", "chunk_text": "x"}])
     assert result["tool_calls"] == ["hybrid_search"]
     assert result["answer"] == "the answer"
@@ -180,6 +205,7 @@ def test_unstructured_only_path_calls_only_hybrid_search():
 def test_structured_only_path_calls_only_sql_tool():
     decision = {
         "use_hybrid_search": False,
+        "hybrid_search_company": None,
         "use_sql_tool": True,
         "sql_queries": [{"company": "Apple", "year": 2025, "metric": "revenue"}],
     }
@@ -191,6 +217,7 @@ def test_structured_only_path_calls_only_sql_tool():
 def test_combined_path_calls_both_tools():
     decision = {
         "use_hybrid_search": True,
+        "hybrid_search_company": "Apple",
         "use_sql_tool": True,
         "sql_queries": [{"company": "Apple", "year": 2025, "metric": "net_income"}],
     }
@@ -204,7 +231,12 @@ def test_combined_path_calls_both_tools():
 
 
 def test_no_match_path_calls_no_tools_and_returns_fixed_response():
-    decision = {"use_hybrid_search": False, "use_sql_tool": False, "sql_queries": []}
+    decision = {
+        "use_hybrid_search": False,
+        "hybrid_search_company": None,
+        "use_sql_tool": False,
+        "sql_queries": [],
+    }
     result = _run_graph(decision)
     assert result["tool_calls"] == []
     assert result["answer"] == NO_INFO_RESPONSE

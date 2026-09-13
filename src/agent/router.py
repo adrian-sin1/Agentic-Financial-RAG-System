@@ -17,6 +17,7 @@ ROUTER_SCHEMA = {
             "type": "object",
             "properties": {
                 "use_hybrid_search": {"type": "boolean"},
+                "hybrid_search_company": {"type": ["string", "null"]},
                 "use_sql_tool": {"type": "boolean"},
                 "sql_queries": {
                     "type": "array",
@@ -32,7 +33,7 @@ ROUTER_SCHEMA = {
                     },
                 },
             },
-            "required": ["use_hybrid_search", "use_sql_tool", "sql_queries"],
+            "required": ["use_hybrid_search", "hybrid_search_company", "use_sql_tool", "sql_queries"],
             "additionalProperties": False,
         },
         "strict": True,
@@ -44,6 +45,12 @@ data sources are needed to answer the user's question about SEC filings.
 
 - use_hybrid_search: true if the question needs qualitative/narrative information from a 10-K \
 (business description, risk factors, legal proceedings, MD&A, controls, etc.)
+- hybrid_search_company: if use_hybrid_search is true AND the question is clearly about ONE specific \
+company, put that company's name here so the search only looks at that company's filings (the index \
+holds multiple companies' filings together, and an unfiltered search can surface another company's \
+similarly-worded risk factors instead of the one actually asked about). Set this to null if \
+use_hybrid_search is false, or if the question genuinely spans/compares multiple companies, or names \
+none.
 - use_sql_tool: true if the question needs an exact structured financial figure. Valid metric names \
 are exactly: {", ".join(VALID_METRICS)}.
 

@@ -22,6 +22,7 @@ NO_INFO_RESPONSE = "I don't have enough information in the filings to answer tha
 def router_node(state: AgentState) -> AgentState:
     decision = route(state["question"])
     state["use_hybrid"] = decision["use_hybrid_search"]
+    state["hybrid_company"] = decision["hybrid_search_company"]
     state["use_sql"] = decision["use_sql_tool"]
     state["sql_queries"] = decision["sql_queries"]
     return state
@@ -29,7 +30,7 @@ def router_node(state: AgentState) -> AgentState:
 
 def hybrid_node(state: AgentState) -> AgentState:
     if state["use_hybrid"]:
-        state["hybrid_results"] = hybrid_search(state["question"], top_k=5)
+        state["hybrid_results"] = hybrid_search(state["question"], top_k=5, company=state["hybrid_company"])
         state["tool_calls"] = state["tool_calls"] + ["hybrid_search"]
     else:
         state["hybrid_results"] = []
@@ -141,6 +142,7 @@ def answer_question(question: str) -> AgentState:
         {
             "question": question,
             "use_hybrid": False,
+            "hybrid_company": None,
             "use_sql": False,
             "sql_queries": [],
             "hybrid_results": [],

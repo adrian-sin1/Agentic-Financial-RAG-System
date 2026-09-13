@@ -4,6 +4,7 @@ from typing import TypedDict
 class AgentState(TypedDict):
     question: str
     use_hybrid: bool
+    hybrid_company: str | None
     use_sql: bool
     sql_queries: list[dict]
     hybrid_results: list[dict]
