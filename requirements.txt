@@ -11,5 +11,6 @@ lxml
 tiktoken
 python-dotenv
 pytest
+httpx
 requests
 slowapi
