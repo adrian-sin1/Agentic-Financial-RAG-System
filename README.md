@@ -1,4 +1,4 @@
-# Agentic Financial RAG LLM
+# Agentic Financial RAG System
 
 An agentic RAG platform for answering questions over company financial filings (10-Ks),
 combining unstructured document retrieval with structured financial data lookups.
