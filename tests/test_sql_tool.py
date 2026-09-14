@@ -60,3 +60,16 @@ def test_connection_is_closed_even_on_the_no_match_path():
     with patch("src.retrieval.sql_tool.get_snowflake_connection", return_value=conn):
         query_financials("Apple", 2025, "revenue")
     conn.close.assert_called_once()
+
+
+def test_colloquial_company_name_is_normalized_before_querying():
+    """People say "Google", not "Alphabet" -- the router will pass through
+    whatever the user said, so the lookup must normalize it or a perfectly
+    valid question silently finds nothing.
+    """
+    conn, cursor = _mock_connection(None)
+    with patch("src.retrieval.sql_tool.get_snowflake_connection", return_value=conn):
+        query_financials("Google", 2025, "revenue")
+
+    bind_params = cursor.execute.call_args[0][1]
+    assert bind_params[0] == "Alphabet"

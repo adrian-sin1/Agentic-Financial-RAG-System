@@ -1,4 +1,5 @@
 from src.db.connection import get_snowflake_connection
+from src.retrieval.companies import normalize_company_name
 
 
 def query_financials(company: str, year: int, metric: str) -> dict | None:
@@ -6,6 +7,7 @@ def query_financials(company: str, year: int, metric: str) -> dict | None:
     NOT free-form LLM-generated SQL, so the agent can only ever read exactly
     one (company, year, metric) row.
     """
+    company = normalize_company_name(company)
     conn = get_snowflake_connection()
     cur = conn.cursor()
     cur.execute(

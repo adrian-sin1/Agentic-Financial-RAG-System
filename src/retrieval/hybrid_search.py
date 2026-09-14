@@ -1,3 +1,4 @@
+from src.retrieval.companies import normalize_company_name
 from src.retrieval.keyword_search import keyword_search
 from src.retrieval.neighbors import fetch_chunks, neighbor_chunk_ids
 from src.retrieval.vector_search import vector_search
@@ -26,6 +27,7 @@ def hybrid_search(
     Neighbors are marked is_neighbor=True and carry no rrf_score, since they
     weren't independently judged relevant, just adjacent to something that was.
     """
+    company = normalize_company_name(company)
     candidate_pool = max(top_k * 4, 20)
     vector_results = vector_search(question, top_k=candidate_pool, company=company)
     if not vector_results or max(r["score"] for r in vector_results) < GROUNDEDNESS_THRESHOLD:
