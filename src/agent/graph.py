@@ -120,13 +120,45 @@ def build_graph():
 _graph = None
 
 
-def _log_query(question: str, tool_calls: list[str], answer: str, latency_ms: int):
+def _documents_retrieved(hybrid_results: list[dict]) -> list[dict]:
+    """Which chunks actually grounded the answer -- company/year/section/
+    chunk_id only, never chunk_text, so the log stays queryable metadata
+    instead of a second copy of the filing text."""
+    return [
+        {
+            "chunk_id": r.get("chunk_id"),
+            "company": r.get("company"),
+            "year": r.get("year"),
+            "section": r.get("section"),
+            "is_neighbor": r.get("is_neighbor", False),
+        }
+        for r in hybrid_results
+    ]
+
+
+def _log_query(
+    question: str,
+    tool_calls: list[str],
+    documents_retrieved: list[dict],
+    sql_queries_used: list[dict],
+    answer: str,
+    latency_ms: int,
+):
     conn = get_snowflake_connection()
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO query_log (query_id, question, tool_calls, answer, latency_ms) "
-        "SELECT %s, %s, PARSE_JSON(%s), %s, %s",
-        (str(uuid.uuid4()), question, json.dumps(tool_calls), answer, latency_ms),
+        "INSERT INTO query_log "
+        "(query_id, question, tool_calls, documents_retrieved, sql_queries_used, answer, latency_ms) "
+        "SELECT %s, %s, PARSE_JSON(%s), PARSE_JSON(%s), PARSE_JSON(%s), %s, %s",
+        (
+            str(uuid.uuid4()),
+            question,
+            json.dumps(tool_calls),
+            json.dumps(documents_retrieved),
+            json.dumps(sql_queries_used),
+            answer,
+            latency_ms,
+        ),
     )
     conn.commit()
     conn.close()
@@ -153,5 +185,13 @@ def answer_question(question: str) -> AgentState:
     )
     latency_ms = int((time.time() - start) * 1000)
 
-    _log_query(question, result["tool_calls"], result["answer"], latency_ms)
+    sql_queries_used = result["sql_queries"] if result["use_sql"] else []
+    _log_query(
+        question,
+        result["tool_calls"],
+        _documents_retrieved(result["hybrid_results"]),
+        sql_queries_used,
+        result["answer"],
+        latency_ms,
+    )
     return result

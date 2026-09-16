@@ -1,7 +1,9 @@
+import json
 from unittest.mock import MagicMock, patch
 
 from src.agent.graph import (
     NO_INFO_RESPONSE,
+    _documents_retrieved,
     _has_no_grounding,
     answer_question,
     hybrid_node,
@@ -240,3 +242,132 @@ def test_no_match_path_calls_no_tools_and_returns_fixed_response():
     result = _run_graph(decision)
     assert result["tool_calls"] == []
     assert result["answer"] == NO_INFO_RESPONSE
+
+
+# --- _documents_retrieved ---------------------------------------------------
+
+
+def test_documents_retrieved_keeps_metadata_and_drops_chunk_text():
+    hybrid_results = [
+        {
+            "chunk_id": "aapl::item1a::3",
+            "company": "Apple",
+            "year": 2025,
+            "section": "Item 1A",
+            "chunk_text": "long filing text that shouldn't end up in the log",
+            "rrf_score": 0.5,
+            "is_neighbor": False,
+        },
+        {
+            "chunk_id": "aapl::item1a::4",
+            "company": "Apple",
+            "year": 2025,
+            "section": "Item 1A",
+            "chunk_text": "neighbor text",
+            "rrf_score": None,
+            "is_neighbor": True,
+        },
+    ]
+    docs = _documents_retrieved(hybrid_results)
+    assert docs == [
+        {"chunk_id": "aapl::item1a::3", "company": "Apple", "year": 2025, "section": "Item 1A", "is_neighbor": False},
+        {"chunk_id": "aapl::item1a::4", "company": "Apple", "year": 2025, "section": "Item 1A", "is_neighbor": True},
+    ]
+    assert "chunk_text" not in json.dumps(docs)
+
+
+def test_documents_retrieved_empty_when_no_hybrid_results():
+    assert _documents_retrieved([]) == []
+
+
+# --- query_log observability -------------------------------------------------
+
+
+def test_log_query_records_documents_retrieved_and_sql_params_used():
+    """query_log should capture which chunks grounded the answer and which
+    exact (company, year, metric) params sql_tool was called with -- not just
+    that hybrid_search/sql_tool ran."""
+    decision = {
+        "use_hybrid_search": True,
+        "hybrid_search_company": "Apple",
+        "use_sql_tool": True,
+        "sql_queries": [{"company": "Apple", "year": 2025, "metric": "net_income"}],
+    }
+    hybrid_return = [
+        {
+            "chunk_id": "aapl::item1a::3",
+            "company": "Apple",
+            "year": 2025,
+            "section": "Item 1A",
+            "chunk_text": "x",
+            "is_neighbor": False,
+        }
+    ]
+    sql_return = {
+        "metric_value": 1,
+        "unit": "USD",
+        "metric_name": "net_income",
+        "company": "Apple",
+        "year": 2025,
+        "source": "x",
+    }
+
+    mock_response = MagicMock()
+    mock_response.choices[0].message.content = "the answer"
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = mock_response
+
+    mock_cursor = MagicMock()
+    mock_conn = MagicMock()
+    mock_conn.cursor.return_value = mock_cursor
+
+    with (
+        patch("src.agent.graph.route", return_value=decision),
+        patch("src.agent.graph.hybrid_search", return_value=hybrid_return),
+        patch("src.agent.graph.query_financials", return_value=sql_return),
+        patch("src.agent.graph.OpenAI", return_value=mock_client),
+        patch("src.agent.graph.get_snowflake_connection", return_value=mock_conn),
+    ):
+        answer_question("some question")
+
+    sql_text, params = mock_cursor.execute.call_args[0]
+    assert "documents_retrieved" in sql_text
+    assert "sql_queries_used" in sql_text
+    assert json.loads(params[3]) == [
+        {"chunk_id": "aapl::item1a::3", "company": "Apple", "year": 2025, "section": "Item 1A", "is_neighbor": False}
+    ]
+    assert json.loads(params[4]) == [{"company": "Apple", "year": 2025, "metric": "net_income"}]
+
+
+def test_log_query_records_empty_sql_params_when_router_skipped_sql():
+    decision = {
+        "use_hybrid_search": True,
+        "hybrid_search_company": "Apple",
+        "use_sql_tool": False,
+        "sql_queries": [],
+    }
+    hybrid_return = [
+        {"chunk_id": "c1", "company": "Apple", "year": 2025, "section": "Item 1A", "chunk_text": "x", "is_neighbor": False}
+    ]
+
+    mock_response = MagicMock()
+    mock_response.choices[0].message.content = "the answer"
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.return_value = mock_response
+
+    mock_cursor = MagicMock()
+    mock_conn = MagicMock()
+    mock_conn.cursor.return_value = mock_cursor
+
+    with (
+        patch("src.agent.graph.route", return_value=decision),
+        patch("src.agent.graph.hybrid_search", return_value=hybrid_return),
+        patch("src.agent.graph.query_financials") as mock_query,
+        patch("src.agent.graph.OpenAI", return_value=mock_client),
+        patch("src.agent.graph.get_snowflake_connection", return_value=mock_conn),
+    ):
+        answer_question("some question")
+
+    mock_query.assert_not_called()
+    params = mock_cursor.execute.call_args[0][1]
+    assert json.loads(params[4]) == []

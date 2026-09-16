@@ -32,10 +32,12 @@ CREATE TABLE IF NOT EXISTS financial_metrics (
 );
 
 CREATE TABLE IF NOT EXISTS query_log (
-    query_id    STRING PRIMARY KEY,
-    question    STRING NOT NULL,
-    tool_calls  VARIANT,
-    answer      STRING,
-    latency_ms  NUMBER,
-    created_at  TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
+    query_id            STRING PRIMARY KEY,
+    question            STRING NOT NULL,
+    tool_calls          VARIANT,
+    documents_retrieved VARIANT,
+    sql_queries_used    VARIANT,
+    answer              STRING,
+    latency_ms          NUMBER,
+    created_at          TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP()
 );
