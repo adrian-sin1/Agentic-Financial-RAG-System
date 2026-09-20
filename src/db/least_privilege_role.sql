@@ -1,6 +1,12 @@
 -- Replaces financial_rag_svc's blanket SYSADMIN role with a narrowly-scoped
 -- custom role that only has the privileges the app code actually uses.
 -- Run once in Snowsight as ACCOUNTADMIN (select all, "Run All").
+--
+-- NOTE: as originally run, this also granted READ on the FINANCIAL_RAG.RAW.
+-- RAW_FILINGS stage and USAGE on the RAW schema, for the raw-filing download
+-- step. That step has since moved to Oracle Cloud Object Storage (see
+-- src/db/oci_storage.py and src/db/migrations/002_revoke_unused_stage_access.sql),
+-- so a fresh setup following this file today doesn't need either grant.
 
 USE ROLE ACCOUNTADMIN;
 
@@ -8,7 +14,6 @@ CREATE ROLE IF NOT EXISTS FINANCIAL_RAG_APP_ROLE;
 
 GRANT USAGE ON DATABASE FINANCIAL_RAG TO ROLE FINANCIAL_RAG_APP_ROLE;
 GRANT USAGE ON SCHEMA FINANCIAL_RAG.PUBLIC TO ROLE FINANCIAL_RAG_APP_ROLE;
-GRANT USAGE ON SCHEMA FINANCIAL_RAG.RAW TO ROLE FINANCIAL_RAG_APP_ROLE;
 
 -- Row-level CRUD only -- no CREATE/ALTER/DROP, no OWNERSHIP. Schema changes
 -- (e.g. adding columns) are done by an admin, not the app's own credentials.
@@ -20,9 +25,6 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE FINANCIAL_RAG.PUBLIC.QUERY_LOG TO 
 -- Any future table added to PUBLIC gets the same grants automatically, so this
 -- role doesn't silently lose access after the next schema.sql change.
 GRANT SELECT, INSERT, UPDATE, DELETE ON FUTURE TABLES IN SCHEMA FINANCIAL_RAG.PUBLIC TO ROLE FINANCIAL_RAG_APP_ROLE;
-
--- Read-only: stage.py only ever GETs raw filings, never PUTs from app code.
-GRANT READ ON STAGE FINANCIAL_RAG.RAW.RAW_FILINGS TO ROLE FINANCIAL_RAG_APP_ROLE;
 
 GRANT USAGE ON WAREHOUSE FINANCIAL_RAG_WH TO ROLE FINANCIAL_RAG_APP_ROLE;
 

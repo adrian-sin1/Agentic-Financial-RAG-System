@@ -22,7 +22,7 @@ class DocumentIngestRequest(BaseModel):
     company: str
     year: int
     document_type: str
-    stage_path: str
+    object_path: str
     source_filename: str
 
 

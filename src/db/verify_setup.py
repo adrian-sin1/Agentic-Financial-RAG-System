@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from src.db.connection import get_snowflake_connection
+from src.db.oci_storage import get_client
 from src.db.pinecone_client import get_pinecone_index
 
 load_dotenv()
@@ -23,6 +24,10 @@ def main():
     client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
     embedding = client.embeddings.create(model="text-embedding-3-small", input="test")
     print("OpenAI embeddings OK, dims:", len(embedding.data[0].embedding))
+
+    oci_client = get_client()
+    objects = oci_client.list_objects(os.environ["OCI_NAMESPACE"], os.environ["OCI_BUCKET_NAME"])
+    print("OCI Object Storage OK, objects in bucket:", len(objects.data.objects))
 
 
 if __name__ == "__main__":

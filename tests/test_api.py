@@ -60,7 +60,7 @@ def test_documents_get_requires_api_key(client):
 def test_documents_post_requires_api_key(client):
     response = client.post(
         "/documents",
-        json={"company": "Apple", "year": 2025, "document_type": "10-K", "stage_path": "x", "source_filename": "x"},
+        json={"company": "Apple", "year": 2025, "document_type": "10-K", "object_path": "x", "source_filename": "x"},
     )
     assert response.status_code == 422
 

@@ -77,7 +77,7 @@ def add_document(body: DocumentIngestRequest):
         company=body.company,
         year=body.year,
         document_type=body.document_type,
-        stage_path=body.stage_path,
+        object_path=body.object_path,
         source_filename=body.source_filename,
     )
     return DocumentIngestResponse(**result)

@@ -9,6 +9,7 @@ See [ROADMAP.md](ROADMAP.md) for build phase status.
 
 - **LLM/embeddings:** OpenAI (`text-embedding-3-small` + GPT) end-to-end
 - **Vector store:** Pinecone (embeddings only, keyed by `chunk_id`)
+- **Raw file storage:** Oracle Cloud Infrastructure Object Storage (raw SEC filing HTML, downloaded at ingestion time)
 - **System of record:** Snowflake (`documents`, `document_chunks`, `financial_metrics`, `query_log`)
 - **Structured financials:** SEC EDGAR XBRL companyfacts API
 - **Agent orchestration:** LangGraph
