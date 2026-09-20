@@ -8,6 +8,7 @@ See [ROADMAP.md](ROADMAP.md) for build phase status.
 ## Stack
 
 - **LLM/embeddings:** OpenAI (`text-embedding-3-small` + GPT) end-to-end
+- **Reranking:** Hugging Face-hosted cross-encoder (`BAAI/bge-reranker-v2-m3`), re-scores the RRF-fused candidate pool before the final top-k
 - **Vector store:** Pinecone (embeddings only, keyed by `chunk_id`)
 - **Raw file storage:** Oracle Cloud Infrastructure Object Storage (raw SEC filing HTML, downloaded at ingestion time)
 - **System of record:** Snowflake (`documents`, `document_chunks`, `financial_metrics`, `query_log`)

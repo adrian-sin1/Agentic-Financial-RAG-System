@@ -37,7 +37,7 @@ def test_proceeds_when_best_score_meets_threshold():
         patch("src.retrieval.hybrid_search.keyword_search", return_value=[]),
         patch("src.retrieval.hybrid_search.fetch_chunks", return_value={}),
     ):
-        results = hybrid_search("a real question", expand_neighbors=False)
+        results = hybrid_search("a real question", expand_neighbors=False, rerank=False)
     assert len(results) == 1
     assert results[0]["chunk_id"] == "doc::sec::0"
 
@@ -53,7 +53,7 @@ def test_rrf_ranks_chunks_appearing_in_both_lists_above_single_list_matches():
         patch("src.retrieval.hybrid_search.keyword_search", return_value=keyword_results),
         patch("src.retrieval.hybrid_search.fetch_chunks", return_value={}),
     ):
-        results = hybrid_search("question", expand_neighbors=False)
+        results = hybrid_search("question", expand_neighbors=False, rerank=False)
 
     assert [r["chunk_id"] for r in results] == ["doc::sec::0", "doc::sec::1"]
     assert results[0]["rrf_score"] > results[1]["rrf_score"]
@@ -66,7 +66,7 @@ def test_top_k_limits_the_number_of_ranked_results():
         patch("src.retrieval.hybrid_search.keyword_search", return_value=[]),
         patch("src.retrieval.hybrid_search.fetch_chunks", return_value={}),
     ):
-        results = hybrid_search("question", top_k=3, expand_neighbors=False)
+        results = hybrid_search("question", top_k=3, expand_neighbors=False, rerank=False)
     assert len(results) == 3
 
 
@@ -81,7 +81,7 @@ def test_neighbor_expansion_adds_marked_chunks_without_rrf_score():
         patch("src.retrieval.hybrid_search.keyword_search", return_value=[]),
         patch("src.retrieval.hybrid_search.fetch_chunks", return_value=neighbor_data) as mock_fetch,
     ):
-        results = hybrid_search("question", expand_neighbors=True)
+        results = hybrid_search("question", expand_neighbors=True, rerank=False)
 
     mock_fetch.assert_called_once()
     requested_ids = set(mock_fetch.call_args[0][0])
@@ -99,7 +99,7 @@ def test_expand_neighbors_false_skips_neighbor_lookup_entirely():
         patch("src.retrieval.hybrid_search.keyword_search", return_value=[]),
         patch("src.retrieval.hybrid_search.fetch_chunks") as mock_fetch,
     ):
-        results = hybrid_search("question", expand_neighbors=False)
+        results = hybrid_search("question", expand_neighbors=False, rerank=False)
 
     mock_fetch.assert_not_called()
     assert len(results) == 1
@@ -114,8 +114,68 @@ def test_a_ranked_chunks_own_neighbor_is_not_fetched_twice():
         patch("src.retrieval.hybrid_search.keyword_search", return_value=[]),
         patch("src.retrieval.hybrid_search.fetch_chunks", return_value={}) as mock_fetch,
     ):
-        hybrid_search("question", expand_neighbors=True)
+        hybrid_search("question", expand_neighbors=True, rerank=False)
 
     requested_ids = set(mock_fetch.call_args[0][0])
     assert "doc::sec::0" not in requested_ids
     assert "doc::sec::1" not in requested_ids
+
+
+# --- reranking ---------------------------------------------------------
+
+
+def test_rerank_can_promote_a_chunk_rrf_ranked_outside_top_k():
+    # RRF alone would return doc::sec::0 and doc::sec::1 (top 2 by RRF score),
+    # but the reranker judges doc::sec::2 more relevant -- rerank_chunks is
+    # mocked to return exactly what a real cross-encoder call would promote.
+    vector_results = [_chunk(f"doc::sec::{i}", score=0.9 - i * 0.01) for i in range(3)]
+    reranked = [{**_chunk("doc::sec::2"), "rerank_score": 0.95}]
+
+    with (
+        patch("src.retrieval.hybrid_search.vector_search", return_value=vector_results),
+        patch("src.retrieval.hybrid_search.keyword_search", return_value=[]),
+        patch("src.retrieval.hybrid_search.fetch_chunks", return_value={}),
+        patch("src.retrieval.hybrid_search.rerank_chunks", return_value=reranked) as mock_rerank,
+    ):
+        results = hybrid_search("question", top_k=1, expand_neighbors=False, rerank=True)
+
+    mock_rerank.assert_called_once()
+    call_kwargs = mock_rerank.call_args
+    assert call_kwargs.args[0] == "question"
+    assert {c["chunk_id"] for c in call_kwargs.args[1]} == {"doc::sec::0", "doc::sec::1", "doc::sec::2"}
+    assert call_kwargs.kwargs["top_n"] == 1
+
+    assert [r["chunk_id"] for r in results] == ["doc::sec::2"]
+    assert results[0]["rerank_score"] == 0.95
+    assert results[0]["rrf_score"] is not None
+
+
+def test_rerank_false_skips_the_reranker_entirely():
+    vector_results = [_chunk("doc::sec::0", score=0.9)]
+    with (
+        patch("src.retrieval.hybrid_search.vector_search", return_value=vector_results),
+        patch("src.retrieval.hybrid_search.keyword_search", return_value=[]),
+        patch("src.retrieval.hybrid_search.fetch_chunks", return_value={}),
+        patch("src.retrieval.hybrid_search.rerank_chunks") as mock_rerank,
+    ):
+        results = hybrid_search("question", expand_neighbors=False, rerank=False)
+
+    mock_rerank.assert_not_called()
+    assert results[0]["rerank_score"] is None
+
+
+def test_neighbors_carry_no_rerank_score():
+    vector_results = [_chunk("doc::sec::5", score=0.9)]
+    neighbor_data = {"doc::sec::4": _chunk("doc::sec::4")}
+    reranked = [{**_chunk("doc::sec::5"), "rerank_score": 0.8}]
+
+    with (
+        patch("src.retrieval.hybrid_search.vector_search", return_value=vector_results),
+        patch("src.retrieval.hybrid_search.keyword_search", return_value=[]),
+        patch("src.retrieval.hybrid_search.fetch_chunks", return_value=neighbor_data),
+        patch("src.retrieval.hybrid_search.rerank_chunks", return_value=reranked),
+    ):
+        results = hybrid_search("question", expand_neighbors=True, rerank=True)
+
+    neighbor = next(r for r in results if r["is_neighbor"])
+    assert neighbor["rerank_score"] is None

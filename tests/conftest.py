@@ -12,3 +12,4 @@ def _default_env(monkeypatch):
     has no .env file at all).
     """
     monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setenv("HF_API_TOKEN", "test-hf-token")

@@ -6,6 +6,7 @@ from openai import OpenAI
 from src.db.connection import get_snowflake_connection
 from src.db.oci_storage import get_client
 from src.db.pinecone_client import get_pinecone_index
+from src.retrieval.rerank import rerank_chunks
 
 load_dotenv()
 
@@ -28,6 +29,9 @@ def main():
     oci_client = get_client()
     objects = oci_client.list_objects(os.environ["OCI_NAMESPACE"], os.environ["OCI_BUCKET_NAME"])
     print("OCI Object Storage OK, objects in bucket:", len(objects.data.objects))
+
+    reranked = rerank_chunks("test", [{"chunk_id": "x", "chunk_text": "test"}], top_n=1)
+    print("Hugging Face rerank OK, results:", len(reranked))
 
 
 if __name__ == "__main__":
