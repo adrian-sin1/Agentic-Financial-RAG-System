@@ -5,6 +5,13 @@ terraform {
       version = "~> 5.0"
     }
   }
+
+  backend "azurerm" {
+    resource_group_name = "financial-rag-rg"
+    storage_account_name = "financialragstorage2026"
+    container_name       = "tfstate"
+    key                  = "financial-rag.tfstate"
+  }
 }
 
 provider "azurerm" {

@@ -87,5 +87,39 @@ jobs:
             ghcr.io/${{ env.IMAGE_NAME }}:latest
             ghcr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-      - name: Trigger Render deploy
-        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.16.2"
+
+      - name: Terraform apply (redeploy Azure Container App with the new image)
+        working-directory: terraform
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          ARM_ACCESS_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
+          TF_VAR_container_image: ghcr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          TF_VAR_storage_account_name: financialragstorage2026
+          TF_VAR_app_env_vars: >-
+            {
+              "SNOWFLAKE_ACCOUNT": ${{ toJSON(secrets.SNOWFLAKE_ACCOUNT) }},
+              "SNOWFLAKE_USER": ${{ toJSON(secrets.SNOWFLAKE_USER) }},
+              "SNOWFLAKE_PRIVATE_KEY_PEM": ${{ toJSON(secrets.SNOWFLAKE_PRIVATE_KEY_PEM) }},
+              "SNOWFLAKE_DATABASE": ${{ toJSON(secrets.SNOWFLAKE_DATABASE) }},
+              "SNOWFLAKE_SCHEMA": ${{ toJSON(secrets.SNOWFLAKE_SCHEMA) }},
+              "SNOWFLAKE_WAREHOUSE": ${{ toJSON(secrets.SNOWFLAKE_WAREHOUSE) }},
+              "SNOWFLAKE_ROLE": ${{ toJSON(secrets.SNOWFLAKE_ROLE) }},
+              "PINECONE_API_KEY": ${{ toJSON(secrets.PINECONE_API_KEY) }},
+              "PINECONE_INDEX_NAME": ${{ toJSON(secrets.PINECONE_INDEX_NAME) }},
+              "OPENAI_API_KEY": ${{ toJSON(secrets.OPENAI_API_KEY) }},
+              "HF_API_TOKEN": ${{ toJSON(secrets.HF_API_TOKEN) }},
+              "CHAT_API_KEY": ${{ toJSON(secrets.CHAT_API_KEY) }},
+              "AZURE_STORAGE_CONNECTION_STRING": ${{ toJSON(secrets.AZURE_STORAGE_CONNECTION_STRING) }},
+              "AZURE_CONTAINER_NAME": ${{ toJSON(secrets.AZURE_CONTAINER_NAME) }},
+              "PORT": "8000"
+            }
+        run: |
+          terraform init
+          terraform apply -auto-approve
