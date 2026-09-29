@@ -8,3 +8,7 @@ __pycache__/
 *.egg-info/
 .venv/
 venv/
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars

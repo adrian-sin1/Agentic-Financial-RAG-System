@@ -17,7 +17,9 @@ def _read_key() -> dict:
     return {"key_content": os.environ["OCI_PRIVATE_KEY_PEM"]}
 
 
-def get_client() -> oci.object_storage.ObjectStorageClient:
+def auth_config() -> dict:
+    """Shared OCI SDK auth config -- reused by any client type (object storage,
+    container instances, etc.), not just the one this module wraps."""
     config = {
         "user": os.environ["OCI_USER_OCID"],
         "tenancy": os.environ["OCI_TENANCY_OCID"],
@@ -28,7 +30,11 @@ def get_client() -> oci.object_storage.ObjectStorageClient:
     passphrase = os.environ.get("OCI_PRIVATE_KEY_PASSPHRASE")
     if passphrase:
         config["pass_phrase"] = passphrase
-    return oci.object_storage.ObjectStorageClient(config)
+    return config
+
+
+def get_client() -> oci.object_storage.ObjectStorageClient:
+    return oci.object_storage.ObjectStorageClient(auth_config())
 
 
 def get_from_bucket(object_path: str, local_dir: str) -> str:

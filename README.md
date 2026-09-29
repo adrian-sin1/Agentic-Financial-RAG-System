@@ -10,11 +10,13 @@ See [ROADMAP.md](ROADMAP.md) for build phase status.
 - **LLM/embeddings:** OpenAI (`text-embedding-3-small` + GPT) end-to-end
 - **Reranking:** Hugging Face-hosted cross-encoder (`BAAI/bge-reranker-v2-m3`), re-scores the RRF-fused candidate pool before the final top-k
 - **Vector store:** Pinecone (embeddings only, keyed by `chunk_id`)
-- **Raw file storage:** Oracle Cloud Infrastructure Object Storage (raw SEC filing HTML, downloaded at ingestion time)
+- **Raw file storage:** Azure Blob Storage (raw SEC filing HTML, downloaded at ingestion time)
 - **System of record:** Snowflake (`documents`, `document_chunks`, `financial_metrics`, `query_log`)
 - **Structured financials:** SEC EDGAR XBRL companyfacts API
 - **Agent orchestration:** LangGraph
 - **API:** FastAPI
+- **Hosting:** Azure Container Apps
+- **Infrastructure as code:** Terraform (`terraform/`) provisions the storage account, Container Apps environment, and the app itself
 
 ## Setup
 
@@ -46,5 +48,6 @@ src/
 tests/
 eval/
   └── golden_questions.jsonl
+terraform/       # infra as code: resource group, storage account, Container Apps
 data/raw/        # local scratch, gitignored
 ```

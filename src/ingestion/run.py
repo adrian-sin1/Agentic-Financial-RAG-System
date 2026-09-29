@@ -1,6 +1,6 @@
 import argparse
 
-from src.db.oci_storage import get_from_bucket
+from src.db.azure_storage import get_from_bucket
 from src.ingestion.chunk import chunk_sections
 from src.ingestion.clean import clean_sections
 from src.ingestion.embed import embed_chunks
@@ -33,11 +33,11 @@ def ingest(*, company: str, year: int, document_type: str, object_path: str, sou
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Ingest a filing from the OCI raw filings bucket into Snowflake + Pinecone")
+    parser = argparse.ArgumentParser(description="Ingest a filing from the Azure raw filings container into Snowflake + Pinecone")
     parser.add_argument("--company", required=True)
     parser.add_argument("--year", required=True, type=int)
     parser.add_argument("--document-type", required=True)
-    parser.add_argument("--object-path", required=True, help="Object name in the OCI bucket, e.g. apple/2025/aapl-20250927.htm")
+    parser.add_argument("--object-path", required=True, help="Blob name in the Azure container, e.g. apple/2025/aapl-20250927.htm")
     parser.add_argument("--source-filename", required=True)
     args = parser.parse_args()
 

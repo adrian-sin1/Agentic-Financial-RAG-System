@@ -2,6 +2,7 @@ snowflake-connector-python
 cryptography
 pinecone
 oci
+azure-storage-blob
 openai
 langgraph
 fastapi
