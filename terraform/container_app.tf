@@ -21,6 +21,11 @@ resource "azurerm_container_app" "main" {
   revision_mode                = "Single"
 
   template {
+    # 1 keeps a container always running (no cold start); set back to 0 to
+    # scale to zero when idle and pay nothing for compute.
+    min_replicas = 1
+    max_replicas = 10
+
     container {
       name   = "financial-rag-api"
       image  = var.container_image
