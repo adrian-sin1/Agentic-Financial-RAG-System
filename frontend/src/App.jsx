@@ -110,16 +110,12 @@ export default function App() {
         <input
           id="api-key"
           type="password"
-          placeholder="CHAT_API_KEY from .env"
           value={apiKey}
           onChange={(e) => updateApiKey(e.target.value)}
         />
       </div>
 
       <main className="conversation">
-        {entries.length === 0 && (
-          <p className="empty">Ask something like "What risks does Apple face in its supply chain?"</p>
-        )}
         {entries.map((entry, i) => (
           <Exchange entry={entry} key={i} />
         ))}
